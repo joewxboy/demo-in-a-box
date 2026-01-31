@@ -1,32 +1,66 @@
 Vagrant.configure("2") do |config|
+  <% 
+    network_prefix = ENV.fetch('NETWORK_PREFIX', '192.168.56')
+    hub_ip = ENV.fetch('HUB_IP', "#{network_prefix}.10")
+  %>
   <% (1..num_agents.to_i).each do |i| %>
     config.vm.define "agent<%= i %>" do |agent<%= i %>|
-      agent<%= i %>.vm.box = "ubuntu/jammy64"
+      agent<%= i %>.vm.box = ENV.fetch('BOX_NAME', 'demo-in-a-box/ubuntu-jammy-horizon')
+      agent<%= i %>.vm.box_version = ENV.fetch('BOX_VERSION', '1.0.0')
       agent<%= i %>.vm.disk :disk, size: "<%= disk_size %>GB", primary: true
-      agent<%= i %>.vm.network :private_network, ip: "192.168.56.<%= base_ip.to_i + (i-1)*10 %>"
+      agent<%= i %>.vm.network :private_network, ip: "<%= network_prefix %>.<%= base_ip.to_i + (i-1)*10 %>"
       agent<%= i %>.vm.provider "virtualbox" do |vb|
         vb.memory = "<%= memory %>"
+        vb.linked_clone = true
       end
       agent<%= i %>.vm.hostname = "agent<%= i %>"
       agent<%= i %>.vm.provision "shell", inline: <<-SHELL
-      apt-get -y update
-      apt-get -y upgrade
-      apt-get install -y gcc make git curl jq net-tools docker.io docker-compose-v2
+      HUB_IP="<%= hub_ip %>"
+      
       touch agent-install.crt
       export HZN_ORG_ID=<%= hzn_org_id %>
       export HZN_EXCHANGE_USER_AUTH=<%= hzn_exchange_user_auth %>
-      export HZN_EXCHANGE_URL=http://192.168.56.10:3090/v1
-      export HZN_FSS_CSSURL=http://192.168.56.10:9443/
-      export HZN_AGBOT_URL=http://192.168.56.10:3111
-      export HZN_FDO_SVC_URL=http://192.168.56.10:9008/api
+      export HZN_EXCHANGE_URL=http://${HUB_IP}:3090/v1
+      export HZN_FSS_CSSURL=http://${HUB_IP}:9443/
+      export HZN_AGBOT_URL=http://${HUB_IP}:3111
+      export HZN_FDO_SVC_URL=http://${HUB_IP}:9008/api
       echo "HZN_ORG_ID=<%= hzn_org_id %>" > agent-install.cfg
       echo "HZN_EXCHANGE_USER_AUTH=<%= hzn_exchange_user_auth %>" >> agent-install.cfg
-      echo "HZN_EXCHANGE_URL=http://192.168.56.10:3090/v1" >> agent-install.cfg
-      echo "HZN_FSS_CSSURL=http://192.168.56.10:9443/" >> agent-install.cfg
-      echo "HZN_AGBOT_URL=http://192.168.56.10:3111" >> agent-install.cfg
-      echo "HZN_FDO_SVC_URL=http://192.168.56.10:9008/api" >> agent-install.cfg
+      echo "HZN_EXCHANGE_URL=http://${HUB_IP}:3090/v1" >> agent-install.cfg
+      echo "HZN_FSS_CSSURL=http://${HUB_IP}:9443/" >> agent-install.cfg
+      echo "HZN_AGBOT_URL=http://${HUB_IP}:3111" >> agent-install.cfg
+      echo "HZN_FDO_SVC_URL=http://${HUB_IP}:9008/api" >> agent-install.cfg
       export $(cat agent-install.cfg)
       curl -sSL https://raw.githubusercontent.com/open-horizon/anax/refs/heads/master/agent-install/agent-install.sh | bash -s -- -i anax: -k ./agent-install.cfg -c css: -p IBM/pattern-ibm.helloworld -w '*' -T 120
+      
+      echo "Verifying agent installation..."
+      if ! command -v hzn >/dev/null 2>&1; then
+        echo "ERROR: Agent CLI not available"
+        exit 1
+      fi
+      echo "✓ Agent CLI installed"
+      
+      echo "Waiting for agent to start..."
+      for i in {1..30}; do
+        if hzn node list >/dev/null 2>&1; then
+          echo "✓ Agent is running"
+          break
+        fi
+        if [ $i -eq 30 ]; then
+          echo "ERROR: Agent failed to start after 2.5 minutes"
+          exit 1
+        fi
+        sleep 5
+      done
+      
+      echo "Verifying Exchange connectivity..."
+      if ! hzn exchange status >/dev/null 2>&1; then
+        echo "ERROR: Cannot connect to Exchange"
+        exit 1
+      fi
+      echo "✓ Exchange connectivity verified"
+      
+      echo "Agent provisioning complete and healthy"
       SHELL
     end
   <% end %>
