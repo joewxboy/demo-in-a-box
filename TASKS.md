@@ -767,22 +767,22 @@
 
 1. **Start new task:**
    - Update task status in this file
-   - Create git branch: `mcp-server/<task-name>`
+   - Use git branch: `issue-22`
 
 2. **During development:**
    - Follow TypeScript best practices
    - Add tests for new code
-   - Update documentation
+   - Update documentation and AGENTS.md
 
 3. **Complete task:**
    - Check acceptance criteria
    - Run tests: `npm test`
    - Run linter: `npm run lint`
-   - Commit with clear message
+   - Commit with "Issue 22: " prefix and clear message and sign-off
    - Check off task in this file
 
 4. **Integration:**
-   - Merge to main after review
+   - git push origin issue-22 after review
    - Tag milestones (Phase 1 complete, etc.)
 
 ---

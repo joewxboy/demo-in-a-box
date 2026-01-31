@@ -14,3 +14,5 @@ Vagrantfile.bicycle
 Vagrantfile.semi
 .cursor
 .cursor/**
+mcp-server/node_modules/
+mcp-server/dist/
