@@ -222,6 +222,46 @@ Deprovision (destroy or halt) VMs (async operation).
 - `destroy: false` - Just halt VMs (can restart later)
 - `cleanup_files: true` - Also delete environment directory
 
+### 10. env_snapshot
+
+Manage VM snapshots for backup and restore.
+
+**Input:**
+```json
+{
+  "env_name": "my-demo",
+  "operation": "list",
+  "snapshot_name": "pre-upgrade",
+  "target": "all"
+}
+```
+
+**Operations:**
+- `list` - List all snapshots
+- `save` - Create new snapshot
+- `restore` - Restore from snapshot (async)
+- `delete` - Delete snapshot
+
+**Targets:** `hub`, `agent1`, ..., `agent7`, `all`
+
+### 11. env_credentials
+
+Retrieve Open Horizon credentials from environment.
+
+**Input:**
+```json
+{
+  "env_name": "my-demo",
+  "show_secrets": false
+}
+```
+
+**Security:**
+- Credentials redacted by default
+- Set `show_secrets: true` to reveal plain text
+- Returns HZN_ORG_ID and HZN_EXCHANGE_USER_AUTH
+- Only available after environment is provisioned
+
 ## Example Workflow
 
 ```typescript

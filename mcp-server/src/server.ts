@@ -11,6 +11,8 @@ import { operationLogsHandler } from './tools/operation-logs.js';
 import { envSSHInfoHandler } from './tools/env-ssh-info.js';
 import { envExecHandler } from './tools/env-exec.js';
 import { envDeprovisionHandler } from './tools/env-deprovision.js';
+import { envSnapshotHandler } from './tools/env-snapshot.js';
+import { envCredentialsHandler } from './tools/env-credentials.js';
 
 export class DemoInABoxMCPServer {
   private server: Server;
@@ -220,6 +222,56 @@ export class DemoInABoxMCPServer {
             required: ['env_name'],
           },
         },
+        {
+          name: 'env_snapshot',
+          description: 'Manage VM snapshots (list/save/restore/delete)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              env_name: {
+                type: 'string',
+                description: 'Environment name',
+              },
+              operation: {
+                type: 'string',
+                enum: ['list', 'save', 'restore', 'delete'],
+                description: 'Snapshot operation',
+              },
+              snapshot_name: {
+                type: 'string',
+                description: 'Snapshot name (required for save/restore/delete)',
+              },
+              target: {
+                type: 'string',
+                enum: ['hub', 'agent1', 'agent2', 'agent3', 'agent4', 'agent5', 'agent6', 'agent7', 'all'],
+                description: 'Target VM(s)',
+              },
+              description: {
+                type: 'string',
+                description: 'Optional snapshot description',
+              },
+            },
+            required: ['env_name', 'operation'],
+          },
+        },
+        {
+          name: 'env_credentials',
+          description: 'Retrieve Open Horizon credentials from environment (redacted by default)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              env_name: {
+                type: 'string',
+                description: 'Environment name',
+              },
+              show_secrets: {
+                type: 'boolean',
+                description: 'Show credentials in plain text (default: false)',
+              },
+            },
+            required: ['env_name'],
+          },
+        },
       ],
     }));
 
@@ -244,6 +296,10 @@ export class DemoInABoxMCPServer {
             return await envExecHandler(request.params.arguments);
           case 'env_deprovision':
             return await envDeprovisionHandler(request.params.arguments);
+          case 'env_snapshot':
+            return await envSnapshotHandler(request.params.arguments);
+          case 'env_credentials':
+            return await envCredentialsHandler(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
