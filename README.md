@@ -4,14 +4,23 @@ This is a set of materials designed to allow anyone to create a portable set of 
 
 ## Pre-requisites
 
-You must have the following utilities installed in order to provision:
+### Required (All Installation Methods)
 
 * `make`
 * `vagrant`
 * `virtualbox`
 * `erb` (Ruby's ERB template processor)
 
-Additionally, this must be run on an `x86_64` architecture machine running a Debian-based OS such as Ubuntu.
+### Optional (For Custom Box - Recommended)
+
+* `packer` - For building optimized base box (see Installation section)
+
+### System Requirements
+
+* **Architecture:** `x86_64`
+* **OS:** Debian-based (Ubuntu recommended)
+* **RAM:** 8GB minimum (16GB recommended for car/semi configurations)
+* **Disk:** 20GB minimum (80GB for semi with standard boxes, 30GB with custom box)
 
 ## System Configurations
 
@@ -258,28 +267,93 @@ graph TD
 
 Clone the repository, then `cd` into the repo folder.
 
-Run `make check` to verify dependencies are installed and defaults are correct.
-Further, run `make status` to confirm that Vagrant is installed and running properly.
+### Standard Installation (Recommended)
 
-Running `make init` will provision the default system configuration ("unicycle"). To use any other configuration, first `export SYSTEM_CONFIGURATION=<system configuration string>` where `<system configuration string>` is one of "unicycle", "bicycle", "car", or "semi" _without the quotes_. Installation should take between 30 minutes for _unicycle_ to an hour for _semi_.
+For optimized provisioning with faster VM creation and reduced bandwidth usage, first build the custom base box:
+
+1. **Install Packer** (if not already installed):
+   ```bash
+   # macOS
+   brew tap hashicorp/tap
+   brew install hashicorp/tap/packer
+   
+   # Linux (Ubuntu/Debian)
+   curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+   sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+   sudo apt-get update && sudo apt-get install packer
+   ```
+
+2. **Build and add custom box** (one-time, ~10-15 minutes):
+   ```bash
+   make rebuild-box
+   ```
+
+3. **Verify and provision**:
+   ```bash
+   make check
+   make init
+   ```
+
+**Benefits of custom box:**
+- ⏱️ 5-10 minutes faster per VM (packages pre-installed)
+- 📦 60% less disk usage (linked clones)
+- 🌐 Reduced network bandwidth during provisioning
+- ✅ More reliable (tested package versions)
+
+See [BUILD_BOX.md](BUILD_BOX.md) for detailed custom box documentation.
+
+### Quick Start (Without Custom Box)
+
+If you prefer to use the standard Ubuntu base box without customization:
+
+```bash
+export BOX_NAME=ubuntu/jammy64
+make check
+make init
+```
+
+Running `make init` will provision the default system configuration ("unicycle"). To use any other configuration, first `export SYSTEM_CONFIGURATION=<system configuration string>` where `<system configuration string>` is one of "unicycle", "bicycle", "car", or "semi" _without the quotes_. Installation time varies:
+- **With custom box:** 15-20 minutes (unicycle) to 30-40 minutes (semi)
+- **Without custom box:** 30 minutes (unicycle) to 60 minutes (semi)
 
 ### Advanced Configuration
 
 The system can be further customized by setting the following environment variables:
 
+#### Resource Configuration
 * `NUM_AGENTS` - Number of agent VMs to create (default: 1)
-* `BASE_IP` - Starting IP address final value for agent VMs (default: 20)
 * `MEMORY` - Memory allocation per agent VM in MB (default: 2048)
 * `DISK_SIZE` - Disk size per agent VM in GB (default: 20)
 
-Example:
+#### Network Configuration
+* `NETWORK_PREFIX` - Network prefix for all VMs (default: 192.168.56)
+* `HUB_IP` - Hub VM IP address (default: ${NETWORK_PREFIX}.10)
+* `BASE_IP` - Starting IP final octet for agent VMs (default: 20)
+  - Agent IPs calculated as: ${NETWORK_PREFIX}.${BASE_IP + (agent_number-1)*10}
+  - Agent 1: ${NETWORK_PREFIX}.20, Agent 2: ${NETWORK_PREFIX}.30, etc.
+
+#### Custom Resource Example
 ```shell
 export SYSTEM_CONFIGURATION=custom
 export NUM_AGENTS=4
-export BASE_IP=30
 export MEMORY=4096
 export DISK_SIZE=40
 make init
+```
+
+#### Custom Network Example
+```shell
+# Use different network to avoid conflicts
+export NETWORK_PREFIX=10.0.10
+export HUB_IP=10.0.10.5
+export BASE_IP=30
+make init
+
+# Result:
+# Hub:    10.0.10.5
+# Agent1: 10.0.10.30
+# Agent2: 10.0.10.40
+# Agent3: 10.0.10.50
 ```
 
 If you only want the hub running in a VM with an agent, and not a separate agent in a VM, just run `make up-hub` instead of `make init`, but make sure you copy over the credentials from the "mycreds.env" file on the host.
