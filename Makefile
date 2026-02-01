@@ -103,6 +103,77 @@ check:
 	@echo "=====================     ============================================="
 	@echo ""
 
+# Detect host IP address (cross-platform)
+detect-host-ip:
+ifeq ($(OS),Darwin)
+	@IFACE=$$(route -n get default 2>/dev/null | grep interface | awk '{print $$2}'); \
+	if [ -n "$$IFACE" ]; then \
+		IP=$$(ifconfig $$IFACE 2>/dev/null | grep 'inet ' | grep -v 127.0.0.1 | awk '{print $$2}' | head -1); \
+		if [ -n "$$IP" ]; then \
+			echo "$$IP"; \
+		else \
+			echo "ERROR: Could not detect IP for interface $$IFACE" >&2; \
+			exit 1; \
+		fi; \
+	else \
+		echo "ERROR: Could not detect default network interface" >&2; \
+		exit 1; \
+	fi
+else
+	@IP=$$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+'); \
+	if [ -z "$$IP" ]; then \
+		IP=$$(hostname -I 2>/dev/null | awk '{print $$1}'); \
+	fi; \
+	if [ -n "$$IP" ] && [ "$$IP" != "127.0.0.1" ]; then \
+		echo "$$IP"; \
+	else \
+		echo "ERROR: Could not detect host IP address" >&2; \
+		exit 1; \
+	fi
+endif
+
+# Display detected host IP for verification
+check-host-ip:
+	@echo "Detected host IP address: $$($(MAKE) -s detect-host-ip)"
+
+# Generate agent-install-external.env with host IP
+agent-config-external:
+	@echo "Generating agent-install-external.env..."
+	@HOST_IP=$$($(MAKE) -s detect-host-ip); \
+	if [ -z "$$HOST_IP" ]; then \
+		echo "ERROR: Failed to detect host IP"; \
+		exit 1; \
+	fi; \
+	echo "Using host IP: $$HOST_IP"; \
+	echo "export HZN_EXCHANGE_URL=http://$$HOST_IP:3090/v1" > agent-install-external.env; \
+	echo "export HZN_FSS_CSSURL=http://$$HOST_IP:9443/" >> agent-install-external.env; \
+	echo "export HZN_AGBOT_URL=http://$$HOST_IP:3111" >> agent-install-external.env; \
+	echo "export HZN_FDO_SVC_URL=http://$$HOST_IP:9008/api" >> agent-install-external.env; \
+	chmod 644 agent-install-external.env; \
+	echo "✓ Created agent-install-external.env with host IP $$HOST_IP"
+
+# Generate agent-install-internal.env with hub VM IP
+agent-config-internal:
+	@echo "Generating agent-install-internal.env..."
+	@echo "Using hub IP: $(HUB_IP)"; \
+	echo "export HZN_EXCHANGE_URL=http://$(HUB_IP):3090/v1" > agent-install-internal.env; \
+	echo "export HZN_FSS_CSSURL=http://$(HUB_IP):9443/" >> agent-install-internal.env; \
+	echo "export HZN_AGBOT_URL=http://$(HUB_IP):3111" >> agent-install-internal.env; \
+	echo "export HZN_FDO_SVC_URL=http://$(HUB_IP):9008/api" >> agent-install-internal.env; \
+	chmod 644 agent-install-internal.env; \
+	echo "✓ Created agent-install-internal.env with hub IP $(HUB_IP)"
+
+# Generate both agent configuration files
+generate-agent-configs: agent-config-external agent-config-internal
+	@echo ""
+	@echo "Agent configuration files generated successfully!"
+	@echo ""
+	@echo "Usage:"
+	@echo "  - agent-install-external.env: For agents connecting from the host machine"
+	@echo "  - agent-install-internal.env: For agents connecting from within VMs"
+	@echo ""
+	@echo "To use: export \$$(cat agent-install-external.env)"
+
 init: up-hub up
 
 up-hub: 

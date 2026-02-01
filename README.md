@@ -423,6 +423,73 @@ If you only want the hub running in a VM with an agent, and not a separate agent
 
 Running `make down` will de-provision the system and cannot be undone. Make sure you really want to do this.
 
+## Agent Configuration Files
+
+After provisioning the hub VM, you can generate agent configuration files for connecting to the Open Horizon services from different network contexts:
+
+```bash
+make generate-agent-configs
+```
+
+This creates two configuration files:
+
+### agent-install-external.env
+Contains service URLs using your **host machine's local network IP address**. Use this when:
+- Running an agent directly on your host machine (outside VirtualBox)
+- Testing from the host where the VMs are running
+- The host needs to access hub services via port forwarding
+
+**Example:**
+```bash
+export HZN_EXCHANGE_URL=http://192.168.1.100:3090/v1
+export HZN_FSS_CSSURL=http://192.168.1.100:9443/
+export HZN_AGBOT_URL=http://192.168.1.100:3111
+export HZN_FDO_SVC_URL=http://192.168.1.100:9008/api
+```
+
+### agent-install-internal.env
+Contains service URLs using the **hub VM's internal IP address** (192.168.56.10 by default). Use this when:
+- Running an agent inside a VirtualBox VM on the same host-only network
+- Connecting from agent VMs to the hub VM
+- Working within the VirtualBox network namespace
+
+**Example:**
+```bash
+export HZN_EXCHANGE_URL=http://192.168.56.10:3090/v1
+export HZN_FSS_CSSURL=http://192.168.56.10:9443/
+export HZN_AGBOT_URL=http://192.168.56.10:3111
+export HZN_FDO_SVC_URL=http://192.168.56.10:9008/api
+```
+
+### Using the Configuration Files
+
+To apply a configuration file before running Open Horizon commands:
+
+```bash
+# Load external configuration (for host machine)
+export $(cat agent-install-external.env)
+hzn version
+
+# Or load internal configuration (for VM agents)
+export $(cat agent-install-internal.env)
+hzn node list
+```
+
+### Additional Commands
+
+```bash
+# Check your host machine's detected IP address
+make check-host-ip
+
+# Regenerate external config only (if your host IP changed)
+make agent-config-external
+
+# Regenerate internal config only (if you changed HUB_IP)
+make agent-config-internal
+```
+
+**Note:** The `agent-install-external.env` configuration requires proper port forwarding from the host to the hub VM. The default hub Vagrantfile includes port forwarding for all required services (ports 3090, 3111, 9008, 9443).
+
 ## Usage
 
 Run `make connect` to SSH to the first agent VM in _unicycle_ configuration. For all other configurations, specify the "VMNAME" as an argument: `make connect VMNAME=agent3`. The credentials can be set by running `export $(cat agent-install.cfg)`. To test that the installation is configured and working, run the following commands:
