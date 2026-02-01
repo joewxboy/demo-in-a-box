@@ -19,7 +19,7 @@ mcp-server/dist/
 example.txt
 
 # Custom Vagrant box build artifacts
-ubuntu-jammy-horizon-virtualbox-*.box
+*.box
 box-metadata.json
 packer_output/
 packer_cache/

@@ -5,7 +5,8 @@ Vagrant.configure("2") do |config|
   %>
   <% (1..num_agents.to_i).each do |i| %>
     config.vm.define "agent<%= i %>" do |agent<%= i %>|
-      agent<%= i %>.vm.box = ENV.fetch('BOX_NAME', 'demo-in-a-box/ubuntu-jammy-horizon')
+      # Use agent-specific box (allows mixed OS)
+      agent<%= i %>.vm.box = ENV.fetch('AGENT_BOX_NAME', 'demo-in-a-box/ubuntu-jammy-horizon')
       agent<%= i %>.vm.box_version = ENV.fetch('BOX_VERSION', '1.0.0')
       agent<%= i %>.vm.disk :disk, size: "<%= disk_size %>GB", primary: true
       agent<%= i %>.vm.network :private_network, ip: "<%= network_prefix %>.<%= base_ip.to_i + (i-1)*10 %>"
@@ -16,6 +17,12 @@ Vagrant.configure("2") do |config|
       agent<%= i %>.vm.hostname = "agent<%= i %>"
       agent<%= i %>.vm.provision "shell", inline: <<-SHELL
       HUB_IP="<%= hub_ip %>"
+      
+      # Detect OS type
+      . /etc/os-release
+      OS_ID=$ID
+      
+      echo "==> Agent <%= i %> detected OS: $OS_ID"
       
       touch agent-install.crt
       export HZN_ORG_ID=<%= hzn_org_id %>
