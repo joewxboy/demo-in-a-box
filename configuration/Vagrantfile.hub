@@ -1,7 +1,8 @@
 Vagrant.configure("2") do |config|
   hub_ip = ENV.fetch('HUB_IP', '192.168.56.10')
   
-  config.vm.box = ENV.fetch('BOX_NAME', 'demo-in-a-box/ubuntu-jammy-horizon')
+  # Use hub-specific box (allows mixed OS)
+  config.vm.box = ENV.fetch('HUB_BOX_NAME', 'demo-in-a-box/ubuntu-jammy-horizon')
   config.vm.box_version = ENV.fetch('BOX_VERSION', '1.0.0')
   config.vm.hostname = "exchange"
   config.vm.disk :disk, size: "50GB", primary: true
@@ -17,10 +18,27 @@ Vagrant.configure("2") do |config|
   config.vm.provision "shell", inline: <<-SHELL
     HUB_IP="#{hub_ip}"
     
-    ufw allow 3090/tcp
-    ufw allow 3111/tcp
-    ufw allow 9008/tcp
-    ufw allow 9443/tcp
+    # Detect OS type
+    . /etc/os-release
+    OS_ID=$ID
+    
+    echo "==> Detected OS: $OS_ID"
+    
+    # Configure firewall based on OS
+    if [ "$OS_ID" = "ubuntu" ]; then
+      echo "==> Configuring UFW firewall"
+      ufw allow 3090/tcp
+      ufw allow 3111/tcp
+      ufw allow 9008/tcp
+      ufw allow 9443/tcp
+    elif [ "$OS_ID" = "fedora" ]; then
+      echo "==> Configuring firewalld"
+      firewall-cmd --permanent --add-port=3090/tcp
+      firewall-cmd --permanent --add-port=3111/tcp
+      firewall-cmd --permanent --add-port=9008/tcp
+      firewall-cmd --permanent --add-port=9443/tcp
+      firewall-cmd --reload
+    fi
     export HZN_LISTEN_IP="${HUB_IP}"
     export CSS_IMAGE_TAG=latest
     export MONGO_IMAGE_TAG=4.0.6
@@ -47,6 +65,73 @@ EOF
     
     echo "Credentials written to mycreds.env"
     source /vagrant/mycreds.env
+    
+    # Extract root/root credentials (first HZN_ORG_ID=root, with EXCHANGE_ROOT_PW context)
+    ROOT_ROOT_ORG=$(grep -A 1 "EXCHANGE_ROOT_PW=" /tmp/deploy-output.txt | grep "export HZN_ORG_ID=" | head -1 | cut -d'=' -f2)
+    ROOT_ROOT_AUTH=$(grep -A 2 "EXCHANGE_ROOT_PW=" /tmp/deploy-output.txt | grep "export HZN_EXCHANGE_USER_AUTH=" | head -1 | cut -d'=' -f2)
+    
+    cat > /vagrant/root-root.env <<EOF
+export HZN_ORG_ID="${ROOT_ROOT_ORG}"
+export HZN_EXCHANGE_USER_AUTH="${ROOT_ROOT_AUTH}"
+EOF
+    
+    # Extract root/hubadmin credentials (with EXCHANGE_HUB_ADMIN_PW context)
+    ROOT_HUBADMIN_ORG=$(grep -A 1 "EXCHANGE_HUB_ADMIN_PW=" /tmp/deploy-output.txt | grep "export HZN_ORG_ID=" | head -1 | cut -d'=' -f2)
+    ROOT_HUBADMIN_AUTH=$(grep -A 2 "EXCHANGE_HUB_ADMIN_PW=" /tmp/deploy-output.txt | grep "export HZN_EXCHANGE_USER_AUTH=" | head -1 | cut -d'=' -f2)
+    
+    cat > /vagrant/root-hubadmin.env <<EOF
+export HZN_ORG_ID="${ROOT_HUBADMIN_ORG}"
+export HZN_EXCHANGE_USER_AUTH="${ROOT_HUBADMIN_AUTH}"
+EOF
+    
+    # Extract IBM/admin credentials (with EXCHANGE_SYSTEM_ADMIN_PW context)
+    IBM_ADMIN_ORG=$(grep -A 1 "EXCHANGE_SYSTEM_ADMIN_PW=" /tmp/deploy-output.txt | grep "export HZN_ORG_ID=" | head -1 | cut -d'=' -f2)
+    IBM_ADMIN_AUTH=$(grep -A 2 "EXCHANGE_SYSTEM_ADMIN_PW=" /tmp/deploy-output.txt | grep "export HZN_EXCHANGE_USER_AUTH=" | head -1 | cut -d'=' -f2)
+    
+    cat > /vagrant/ibm-admin.env <<EOF
+export HZN_ORG_ID="${IBM_ADMIN_ORG}"
+export HZN_EXCHANGE_USER_AUTH="${IBM_ADMIN_AUTH}"
+EOF
+    
+    # Extract myorg/admin credentials (with EXCHANGE_USER_ADMIN_PW context)
+    MYORG_ADMIN_ORG=$(grep -A 1 "EXCHANGE_USER_ADMIN_PW=" /tmp/deploy-output.txt | grep "export HZN_ORG_ID=" | head -1 | cut -d'=' -f2)
+    MYORG_ADMIN_AUTH=$(grep -A 2 "EXCHANGE_USER_ADMIN_PW=" /tmp/deploy-output.txt | grep "export HZN_EXCHANGE_USER_AUTH=" | head -1 | cut -d'=' -f2)
+    
+    cat > /vagrant/myorg-admin.env <<EOF
+export HZN_ORG_ID="${MYORG_ADMIN_ORG}"
+export HZN_EXCHANGE_USER_AUTH="${MYORG_ADMIN_AUTH}"
+EOF
+    
+    # Extract myorg/node1 credentials (with HZN_DEVICE_TOKEN context)
+    MYORG_NODE1_ORG=$(grep -A 1 "HZN_DEVICE_TOKEN=" /tmp/deploy-output.txt | grep "export HZN_ORG_ID=" | head -1 | cut -d'=' -f2)
+    MYORG_NODE1_AUTH=$(grep -A 2 "HZN_DEVICE_TOKEN=" /tmp/deploy-output.txt | grep "export HZN_EXCHANGE_USER_AUTH=" | head -1 | cut -d'=' -f2)
+    
+    cat > /vagrant/myorg-node1.env <<EOF
+export HZN_ORG_ID="${MYORG_NODE1_ORG}"
+export HZN_EXCHANGE_USER_AUTH="${MYORG_NODE1_AUTH}"
+EOF
+    
+    echo "Additional credentials written to root-root.env, root-hubadmin.env, ibm-admin.env, myorg-admin.env, myorg-node1.env"
+    
+    # Validate all credential files
+    for cred_file in root-root.env root-hubadmin.env ibm-admin.env myorg-admin.env myorg-node1.env; do
+      if [ ! -f "/vagrant/${cred_file}" ]; then
+        echo "ERROR: ${cred_file} was not created"
+        exit 1
+      fi
+      
+      if ! grep -q "HZN_ORG_ID=" "/vagrant/${cred_file}"; then
+        echo "ERROR: HZN_ORG_ID missing from ${cred_file}"
+        exit 1
+      fi
+      
+      if ! grep -q "HZN_EXCHANGE_USER_AUTH=" "/vagrant/${cred_file}"; then
+        echo "ERROR: HZN_EXCHANGE_USER_AUTH missing from ${cred_file}"
+        exit 1
+      fi
+    done
+    
+    echo "✓ All credential files validated successfully"
     
     echo "Waiting for Exchange to be ready..."
     for i in {1..30}; do

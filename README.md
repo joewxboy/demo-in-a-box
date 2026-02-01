@@ -267,6 +267,47 @@ graph TD
 
 Clone the repository, then `cd` into the repo folder.
 
+### Operating System Selection
+
+**Default:** Ubuntu 22.04 LTS
+
+**Supported Operating Systems:**
+- `ubuntu-22` - Ubuntu 22.04 LTS (Jammy Jellyfish) - Default
+- `ubuntu-24` - Ubuntu 24.04 LTS (Noble Numbat)
+- `fedora-41` - Fedora 41
+
+#### Same OS for All VMs
+
+To use a different OS for all VMs:
+
+```bash
+# Ubuntu 24 for everything
+export HUB_OS_TYPE=ubuntu-24
+export AGENT_OS_TYPE=ubuntu-24
+make rebuild-boxes
+make init
+```
+
+#### Mixed OS Environments
+
+You can run different operating systems for hub and agents:
+
+```bash
+# Example 1: Ubuntu 22 hub + Fedora 41 agents
+export HUB_OS_TYPE=ubuntu-22
+export AGENT_OS_TYPE=fedora-41
+make rebuild-boxes
+make init
+
+# Example 2: Fedora 41 hub + Ubuntu 24 agents
+export HUB_OS_TYPE=fedora-41
+export AGENT_OS_TYPE=ubuntu-24
+make rebuild-boxes
+make init
+```
+
+See [MIXED_OS_GUIDE.md](MIXED_OS_GUIDE.md) for detailed mixed-OS documentation.
+
 ### Standard Installation (Recommended)
 
 For optimized provisioning with faster VM creation and reduced bandwidth usage, first build the custom base box:
@@ -285,7 +326,7 @@ For optimized provisioning with faster VM creation and reduced bandwidth usage, 
 
 2. **Build and add custom box** (one-time, ~10-15 minutes):
    ```bash
-   make rebuild-box
+   make rebuild-boxes
    ```
 
 3. **Verify and provision**:
@@ -299,16 +340,32 @@ For optimized provisioning with faster VM creation and reduced bandwidth usage, 
 - 📦 60% less disk usage (linked clones)
 - 🌐 Reduced network bandwidth during provisioning
 - ✅ More reliable (tested package versions)
+- 🔄 Support for multiple operating systems
 
 See [BUILD_BOX.md](BUILD_BOX.md) for detailed custom box documentation.
 
 ### Quick Start (Without Custom Box)
 
-If you prefer to use the standard Ubuntu base box without customization:
+If you prefer to use the standard Ubuntu 22.04 base box without customization:
 
 ```bash
-export BOX_NAME=ubuntu/jammy64
+export HUB_BOX_NAME=ubuntu/jammy64
+export AGENT_BOX_NAME=ubuntu/jammy64
 make check
+make init
+```
+
+For other standard boxes:
+
+```bash
+# Ubuntu 24.04
+export HUB_BOX_NAME=bento/ubuntu-24.04
+export AGENT_BOX_NAME=bento/ubuntu-24.04
+make init
+
+# Fedora 41
+export HUB_BOX_NAME=bento/fedora-41
+export AGENT_BOX_NAME=bento/fedora-41
 make init
 ```
 
@@ -319,6 +376,12 @@ Running `make init` will provision the default system configuration ("unicycle")
 ### Advanced Configuration
 
 The system can be further customized by setting the following environment variables:
+
+#### OS Configuration
+* `DEFAULT_OS_TYPE` - Default OS for all VMs (default: ubuntu-22)
+* `HUB_OS_TYPE` - OS for hub VM (default: ${DEFAULT_OS_TYPE})
+* `AGENT_OS_TYPE` - OS for agent VMs (default: ${DEFAULT_OS_TYPE})
+* `BOX_VERSION` - Version number for custom boxes (default: 1.0.0)
 
 #### Resource Configuration
 * `NUM_AGENTS` - Number of agent VMs to create (default: 1)
@@ -359,6 +422,73 @@ make init
 If you only want the hub running in a VM with an agent, and not a separate agent in a VM, just run `make up-hub` instead of `make init`, but make sure you copy over the credentials from the "mycreds.env" file on the host.
 
 Running `make down` will de-provision the system and cannot be undone. Make sure you really want to do this.
+
+## Agent Configuration Files
+
+After provisioning the hub VM, you can generate agent configuration files for connecting to the Open Horizon services from different network contexts:
+
+```bash
+make generate-agent-configs
+```
+
+This creates two configuration files:
+
+### agent-install-external.env
+Contains service URLs using your **host machine's local network IP address**. Use this when:
+- Running an agent directly on your host machine (outside VirtualBox)
+- Testing from the host where the VMs are running
+- The host needs to access hub services via port forwarding
+
+**Example:**
+```bash
+export HZN_EXCHANGE_URL=http://192.168.1.100:3090/v1
+export HZN_FSS_CSSURL=http://192.168.1.100:9443/
+export HZN_AGBOT_URL=http://192.168.1.100:3111
+export HZN_FDO_SVC_URL=http://192.168.1.100:9008/api
+```
+
+### agent-install-internal.env
+Contains service URLs using the **hub VM's internal IP address** (192.168.56.10 by default). Use this when:
+- Running an agent inside a VirtualBox VM on the same host-only network
+- Connecting from agent VMs to the hub VM
+- Working within the VirtualBox network namespace
+
+**Example:**
+```bash
+export HZN_EXCHANGE_URL=http://192.168.56.10:3090/v1
+export HZN_FSS_CSSURL=http://192.168.56.10:9443/
+export HZN_AGBOT_URL=http://192.168.56.10:3111
+export HZN_FDO_SVC_URL=http://192.168.56.10:9008/api
+```
+
+### Using the Configuration Files
+
+To apply a configuration file before running Open Horizon commands:
+
+```bash
+# Load external configuration (for host machine)
+export $(cat agent-install-external.env)
+hzn version
+
+# Or load internal configuration (for VM agents)
+export $(cat agent-install-internal.env)
+hzn node list
+```
+
+### Additional Commands
+
+```bash
+# Check your host machine's detected IP address
+make check-host-ip
+
+# Regenerate external config only (if your host IP changed)
+make agent-config-external
+
+# Regenerate internal config only (if you changed HUB_IP)
+make agent-config-internal
+```
+
+**Note:** The `agent-install-external.env` configuration requires proper port forwarding from the host to the hub VM. The default hub Vagrantfile includes port forwarding for all required services (ports 3090, 3111, 9008, 9443).
 
 ## Usage
 
