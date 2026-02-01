@@ -7,7 +7,7 @@
 **/.vagrant
 **/.vagrant/**
 summary.txt
-mycreds.env
+*.env
 Vagrantfile.unicycle
 Vagrantfile.car
 Vagrantfile.bicycle
@@ -16,6 +16,7 @@ Vagrantfile.semi
 .cursor/**
 mcp-server/node_modules/
 mcp-server/dist/
+example.txt
 
 # Custom Vagrant box build artifacts
 ubuntu-jammy-horizon-virtualbox-*.box
