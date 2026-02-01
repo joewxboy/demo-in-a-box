@@ -1,0 +1,9 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-24.04"
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"
+  end
+  
+  config.vm.provision "shell", path: "/Users/josephpearson/dev/demo-in-a-box/packer/scripts/provision-ubuntu-24.sh"
+  config.vm.provision "shell", path: "/Users/josephpearson/dev/demo-in-a-box/packer/scripts/common-cleanup.sh"
+end

@@ -267,6 +267,47 @@ graph TD
 
 Clone the repository, then `cd` into the repo folder.
 
+### Operating System Selection
+
+**Default:** Ubuntu 22.04 LTS
+
+**Supported Operating Systems:**
+- `ubuntu-22` - Ubuntu 22.04 LTS (Jammy Jellyfish) - Default
+- `ubuntu-24` - Ubuntu 24.04 LTS (Noble Numbat)
+- `fedora-41` - Fedora 41
+
+#### Same OS for All VMs
+
+To use a different OS for all VMs:
+
+```bash
+# Ubuntu 24 for everything
+export HUB_OS_TYPE=ubuntu-24
+export AGENT_OS_TYPE=ubuntu-24
+make rebuild-boxes
+make init
+```
+
+#### Mixed OS Environments
+
+You can run different operating systems for hub and agents:
+
+```bash
+# Example 1: Ubuntu 22 hub + Fedora 41 agents
+export HUB_OS_TYPE=ubuntu-22
+export AGENT_OS_TYPE=fedora-41
+make rebuild-boxes
+make init
+
+# Example 2: Fedora 41 hub + Ubuntu 24 agents
+export HUB_OS_TYPE=fedora-41
+export AGENT_OS_TYPE=ubuntu-24
+make rebuild-boxes
+make init
+```
+
+See [MIXED_OS_GUIDE.md](MIXED_OS_GUIDE.md) for detailed mixed-OS documentation.
+
 ### Standard Installation (Recommended)
 
 For optimized provisioning with faster VM creation and reduced bandwidth usage, first build the custom base box:
@@ -285,7 +326,7 @@ For optimized provisioning with faster VM creation and reduced bandwidth usage, 
 
 2. **Build and add custom box** (one-time, ~10-15 minutes):
    ```bash
-   make rebuild-box
+   make rebuild-boxes
    ```
 
 3. **Verify and provision**:
@@ -299,16 +340,32 @@ For optimized provisioning with faster VM creation and reduced bandwidth usage, 
 - 📦 60% less disk usage (linked clones)
 - 🌐 Reduced network bandwidth during provisioning
 - ✅ More reliable (tested package versions)
+- 🔄 Support for multiple operating systems
 
 See [BUILD_BOX.md](BUILD_BOX.md) for detailed custom box documentation.
 
 ### Quick Start (Without Custom Box)
 
-If you prefer to use the standard Ubuntu base box without customization:
+If you prefer to use the standard Ubuntu 22.04 base box without customization:
 
 ```bash
-export BOX_NAME=ubuntu/jammy64
+export HUB_BOX_NAME=ubuntu/jammy64
+export AGENT_BOX_NAME=ubuntu/jammy64
 make check
+make init
+```
+
+For other standard boxes:
+
+```bash
+# Ubuntu 24.04
+export HUB_BOX_NAME=bento/ubuntu-24.04
+export AGENT_BOX_NAME=bento/ubuntu-24.04
+make init
+
+# Fedora 41
+export HUB_BOX_NAME=bento/fedora-41
+export AGENT_BOX_NAME=bento/fedora-41
 make init
 ```
 
@@ -319,6 +376,12 @@ Running `make init` will provision the default system configuration ("unicycle")
 ### Advanced Configuration
 
 The system can be further customized by setting the following environment variables:
+
+#### OS Configuration
+* `DEFAULT_OS_TYPE` - Default OS for all VMs (default: ubuntu-22)
+* `HUB_OS_TYPE` - OS for hub VM (default: ${DEFAULT_OS_TYPE})
+* `AGENT_OS_TYPE` - OS for agent VMs (default: ${DEFAULT_OS_TYPE})
+* `BOX_VERSION` - Version number for custom boxes (default: 1.0.0)
 
 #### Resource Configuration
 * `NUM_AGENTS` - Number of agent VMs to create (default: 1)
