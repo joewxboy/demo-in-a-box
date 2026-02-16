@@ -22,7 +22,7 @@ DEFAULT_OS_TYPE ?= ubuntu-22
 export HUB_OS_TYPE ?= $(DEFAULT_OS_TYPE)
 export AGENT_OS_TYPE ?= $(DEFAULT_OS_TYPE)
 
-# Box version (shared)
+# Box version (shared) - also used for base Vagrant box version pinning
 export BOX_VERSION ?= 1.0.0
 
 # Map system configurations to parameters
@@ -53,7 +53,10 @@ endif
 get_box_name = $(if $(filter ubuntu-22,$(1)),demo-in-a-box/ubuntu-jammy-horizon,$(if $(filter ubuntu-24,$(1)),demo-in-a-box/ubuntu-noble-horizon,$(if $(filter fedora-41,$(1)),demo-in-a-box/fedora-41-horizon,$(error Unknown OS_TYPE: $(1). Valid: ubuntu-22, ubuntu-24, fedora-41))))
 get_packer_template = $(if $(filter ubuntu-22,$(1)),packer/ubuntu-22-horizon.pkr.hcl,$(if $(filter ubuntu-24,$(1)),packer/ubuntu-24-horizon.pkr.hcl,$(if $(filter fedora-41,$(1)),packer/fedora-41-horizon.pkr.hcl,$(error Unknown OS_TYPE: $(1)))))
 get_box_file = $(if $(filter ubuntu-22,$(1)),ubuntu-jammy-horizon-virtualbox-$(BOX_VERSION).box,$(if $(filter ubuntu-24,$(1)),ubuntu-noble-horizon-virtualbox-$(BOX_VERSION).box,$(if $(filter fedora-41,$(1)),fedora-41-horizon-virtualbox-$(BOX_VERSION).box,$(error Unknown OS_TYPE: $(1)))))
-get_base_box = $(if $(filter ubuntu-22,$(1)),ubuntu/jammy64,$(if $(filter ubuntu-24,$(1)),bento/ubuntu-24.04,$(if $(filter fedora-41,$(1)),bento/fedora-41,$(error Unknown OS_TYPE: $(1)))))
+# Helper function to get base box with optional version pinning
+# Only adds version if BOX_VERSION looks like a date (e.g., 20250415.01.137)
+get_base_box_version = $(if $(filter 20%,$(BOX_VERSION)),/$(BOX_VERSION),)
+get_base_box = $(if $(filter ubuntu-22,$(1)),ubuntu/jammy64$(call get_base_box_version),$(if $(filter ubuntu-24,$(1)),bento/ubuntu-24.04$(call get_base_box_version),$(if $(filter fedora-41,$(1)),bento/fedora-41$(call get_base_box_version),$(error Unknown OS_TYPE: $(1)))))
 
 # Calculate hub and agent box names
 export HUB_BOX_NAME := $(call get_box_name,$(HUB_OS_TYPE))
