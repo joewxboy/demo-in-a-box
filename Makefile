@@ -280,12 +280,12 @@ endif
 # Add hub box
 add-hub-box:
 	@echo "Adding hub custom box to Vagrant..."
-	@vagrant box add --name $(HUB_BOX_NAME) $(HUB_BOX_FILE) --force
+	@vagrant box add --name $(HUB_BOX_NAME) $(HUB_BOX_FILE) --box-version $(BOX_VERSION) --force
 
 # Add agent box
 add-agent-box:
 	@echo "Adding agent custom box to Vagrant..."
-	@vagrant box add --name $(AGENT_BOX_NAME) $(AGENT_BOX_FILE) --force
+	@vagrant box add --name $(AGENT_BOX_NAME) $(AGENT_BOX_FILE) --box-version $(BOX_VERSION) --force
 
 # Add both (skip duplicates if same OS)
 add-boxes:
