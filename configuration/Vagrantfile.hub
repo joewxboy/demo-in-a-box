@@ -3,7 +3,12 @@ Vagrant.configure("2") do |config|
   
   # Use hub-specific box (allows mixed OS)
   config.vm.box = ENV.fetch('HUB_BOX_NAME', 'demo-in-a-box/ubuntu-jammy-horizon')
-  config.vm.box_version = ENV.fetch('BOX_VERSION', '1.0.0')
+  # Only set box_version for date-like versions (for base box pinning)
+  # Otherwise let Vagrant use the local box version
+  box_version = ENV.fetch('BOX_VERSION', '1.0.0')
+  if box_version.start_with?('20')
+    config.vm.box_version = box_version
+  end
   config.vm.hostname = "exchange"
   config.vm.disk :disk, size: "50GB", primary: true
   config.vm.network :private_network, ip: hub_ip

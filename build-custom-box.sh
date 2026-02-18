@@ -7,6 +7,7 @@ set -e
 if [ $# -lt 2 ]; then
     echo "Usage: $0 <os-type> <box-version>"
     echo "Example: $0 ubuntu-24 1.0.0"
+    echo "For base box version pinning, use a date-like version (e.g., 20250415.01.137)"
     exit 1
 fi
 
@@ -37,21 +38,27 @@ show_spinner() {
 }
 
 # Determine box details based on OS type
+# If BOX_VERSION looks like a date (starts with "20"), use it for base box version pinning
+VERSION_SUFFIX=""
+if [[ "$BOX_VERSION" == 20* ]]; then
+    VERSION_SUFFIX="/$BOX_VERSION"
+fi
+
 case $OS_TYPE in
     ubuntu-22)
-        BASE_BOX="ubuntu/jammy64"
+        BASE_BOX="ubuntu/jammy64${VERSION_SUFFIX}"
         BOX_NAME="demo-in-a-box/ubuntu-jammy-horizon"
         BOX_FILE="ubuntu-jammy-horizon-virtualbox-${BOX_VERSION}.box"
         PROVISION_SCRIPT="packer/scripts/provision-ubuntu-22.sh"
         ;;
     ubuntu-24)
-        BASE_BOX="bento/ubuntu-24.04"
+        BASE_BOX="bento/ubuntu-24.04${VERSION_SUFFIX}"
         BOX_NAME="demo-in-a-box/ubuntu-noble-horizon"
         BOX_FILE="ubuntu-noble-horizon-virtualbox-${BOX_VERSION}.box"
         PROVISION_SCRIPT="packer/scripts/provision-ubuntu-24.sh"
         ;;
     fedora-41)
-        BASE_BOX="bento/fedora-41"
+        BASE_BOX="bento/fedora-41${VERSION_SUFFIX}"
         BOX_NAME="demo-in-a-box/fedora-41-horizon"
         BOX_FILE="fedora-41-horizon-virtualbox-${BOX_VERSION}.box"
         PROVISION_SCRIPT="packer/scripts/provision-fedora-41.sh"

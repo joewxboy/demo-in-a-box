@@ -7,7 +7,11 @@ Vagrant.configure("2") do |config|
     config.vm.define "agent<%= i %>" do |agent<%= i %>|
       # Use agent-specific box (allows mixed OS)
       agent<%= i %>.vm.box = ENV.fetch('AGENT_BOX_NAME', 'demo-in-a-box/ubuntu-jammy-horizon')
-      agent<%= i %>.vm.box_version = ENV.fetch('BOX_VERSION', '1.0.0')
+      # Only set box_version for date-like versions (for base box pinning)
+      box_version = ENV.fetch('BOX_VERSION', '1.0.0')
+      if box_version.start_with?('20')
+        agent<%= i %>.vm.box_version = box_version
+      end
       agent<%= i %>.vm.disk :disk, size: "<%= disk_size %>GB", primary: true
       agent<%= i %>.vm.network :private_network, ip: "<%= network_prefix %>.<%= base_ip.to_i + (i-1)*10 %>"
       agent<%= i %>.vm.provider "virtualbox" do |vb|

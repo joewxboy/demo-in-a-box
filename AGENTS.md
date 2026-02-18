@@ -52,6 +52,7 @@ Set before `make init`:
 - `BASE_IP` — Starting IP offset (default: 20)
 - `MEMORY` — MB per agent VM (default: 2048)
 - `DISK_SIZE` — GB per agent VM (default: 20)
+- `BOX_VERSION` — Custom box version (default: 1.0.0). When set to a date-like value (e.g., 20250415.01.137), also pins the base Vagrant box version for reproducibility.
 
 ### Generated Files (NOT COMMITTED)
 - `Vagrantfile.{unicycle,bicycle,car,semi}` — ERB-generated configs
@@ -66,8 +67,8 @@ Set before `make init`:
 - **Risk:** Scripts can change without notice; prefer commit/tag pinning
 
 ### Vagrant Box Versions
-- Uses `ubuntu/jammy64` without version constraint
-- **Risk:** Auto-updates to latest patch; prefer explicit version pinning
+- Uses `ubuntu/jammy64` without version constraint by default
+- **Mitigation:** When `BOX_VERSION` is set to a date-like value (e.g., `20250415.01.137`), it also pins the base Vagrant box version for reproducibility. Default `BOX_VERSION=1.0.0` uses the BOX_VERSION value (not a date-like version, so no base box pinning).
 
 ### Error Suppression
 - Makefile targets use `@` prefix (suppress output)
